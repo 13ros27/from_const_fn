@@ -4,30 +4,30 @@ use core::{
     ptr,
 };
 
-#[macro_export]
-#[doc(hidden)]
-macro_rules! convert_function {
-    (|$var:ident $(: $_:ident)?| $(-> $__:ident)? $body:expr) => {
-        /// # Safety
-        /// `$body` must return `T`
-        const unsafe fn callback<T>($var: usize) -> T {
-            // By placing `$body` in a separate expression we prevent running `unsafe`
-            //  code without a visible `unsafe` block
-            let body = $body;
-            // SAFETY: Guaranteed by caller
-            unsafe { $crate::transmute_const(body) }
-        }
-    };
-    ($cb:expr) => {
-        /// # Safety
-        /// `$cb` must return `T`
-        const unsafe fn callback<T>(i: usize) -> T {
-            // SAFETY: Guaranteed by caller
-            unsafe { $crate::transmute_const($cb(i)) }
-        }
-    };
-}
-
+/// Like [`array::from_fn`](core::array::from_fn), creates an array of type `[T; N]`,
+/// where each element `T` is the returned value from `cb` using that element's index.
+///
+/// Can be passed functions or closures (except closures borrowing from their environment)
+/// taking a single argument of type `usize` and returning values of type `T`.
+///
+/// Unlike [`array::from_fn`](core::array::from_fn) this also works in `const`,
+/// although closures shouldn't start with `const`.
+///
+/// # Examples
+/// ```
+/// # use from_const_fn::from_const_fn;
+/// const ARRAY: [usize; 5] = from_const_fn!(|i| i);
+/// // Indexes are     0  1  2  3  4
+/// assert_eq!(ARRAY, [0, 1, 2, 3, 4]);
+///
+/// const ARRAY_2: [usize; 8] = from_const_fn!(|i| i * 2);
+/// // Indexes are      0  1  2  3  4  5   6   7
+/// assert_eq!(ARRAY_2, [0, 2, 4, 6, 8, 10, 12, 14]);
+///
+/// const BOOL_ARRAY: [bool; 5] = from_const_fn!(|i| i % 2 == 0);
+/// // Indexes are          0     1      2     3      4
+/// assert_eq!(BOOL_ARRAY, [true, false, true, false, true]);
+/// ```
 #[macro_export]
 macro_rules! from_const_fn {
     ($($cb:tt)*) => {{
@@ -54,6 +54,30 @@ macro_rules! from_const_fn {
         // SAFETY: `$cb` is the passed function so it returns the same type.
         unsafe { from_const_fn(::core::mem::ManuallyDrop::new($($cb)*)) }
     }};
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! convert_function {
+    (|$var:ident $(: $_:ident)?| $(-> $__:ident)? $body:expr) => {
+        /// # Safety
+        /// `$body` must return `T`
+        const unsafe fn callback<T>($var: usize) -> T {
+            // By placing `$body` in a separate expression we prevent running `unsafe`
+            //  code without a visible `unsafe` block
+            let body = $body;
+            // SAFETY: Guaranteed by caller
+            unsafe { $crate::transmute_const(body) }
+        }
+    };
+    ($cb:expr) => {
+        /// # Safety
+        /// `$cb` must return `T`
+        const unsafe fn callback<T>(i: usize) -> T {
+            // SAFETY: Guaranteed by caller
+            unsafe { $crate::transmute_const($cb(i)) }
+        }
+    };
 }
 
 /// Converts `src` into the type `Dst`, checking they are the same size but in
