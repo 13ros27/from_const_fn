@@ -1,18 +1,30 @@
 #![no_std]
-use core::mem::{ManuallyDrop, MaybeUninit};
+use core::mem::ManuallyDrop;
 
 #[macro_export]
 macro_rules! from_const_fn {
-    ($cb:expr, $n:expr) => {{
-        let mut array = [const { ::core::mem::MaybeUninit::uninit() }; $n];
-        let mut i = 0;
-        while i < $n {
-            array[i] = ::core::mem::MaybeUninit::new($cb(i));
-            i += 1;
+    ($cb:expr) => {{
+        /// # Safety
+        /// `$cb` must return the same type as the passed function `_`
+        const unsafe fn from_const_fn<T, const N: usize>(
+            _: ::core::mem::ManuallyDrop<impl FnMut(usize) -> T>, // <-- Note 1
+        ) -> [T; N] {
+            let mut array = [const { ::core::mem::MaybeUninit::<T>::uninit() }; N];
+            let mut i = 0;
+            while i < N {
+                // SAFETY: `$cb(i)` returns `T` as guaranteed by caller
+                array[i] = ::core::mem::MaybeUninit::new(unsafe {
+                    $crate::transmute_const($cb(i)) // <-- Note 2
+                });
+                i += 1;
+            }
+            // SAFETY: We initialised each `MaybeUninit` in the loop
+            //  so we can `assume_init`
+            unsafe { $crate::transmute_const(array) }
         }
-        // SAFETY: We initialised each `MaybeUninit` in the loop
-        //  so we can `assume_init`
-        unsafe { $crate::array_assume_init(array) }
+
+        // SAFETY: `$cb` is the passed function so it returns the same type.
+        unsafe { from_const_fn(::core::mem::ManuallyDrop::new($cb)) }
     }};
 }
 
@@ -21,7 +33,7 @@ macro_rules! from_const_fn {
 /// # Safety
 /// See `mem::transmute`
 #[doc(hidden)]
-const unsafe fn transmute_const<Src, Dst>(src: Src) -> Dst {
+pub const unsafe fn transmute_const<Src, Dst>(src: Src) -> Dst {
     const fn check_equal<Src, Dst>() {
         assert!(size_of::<Src>() == size_of::<Dst>());
     }
@@ -33,6 +45,7 @@ const unsafe fn transmute_const<Src, Dst>(src: Src) -> Dst {
     unsafe { transmute_unchecked::<Src, Dst>(src) }
 }
 
+/// Converts `src` into the type `Dst` without checking they're the same size
 /// # Safety
 ///  - The caller must follow all invariants of `mem::transmute`
 ///  - `size_of::<Src>() == size_of::<Dst>()`
@@ -48,13 +61,4 @@ const unsafe fn transmute_unchecked<Src, Dst>(src: Src) -> Dst {
     };
     // SAFETY: Guaranteed by caller
     unsafe { ManuallyDrop::into_inner(alchemy.dst) }
-}
-
-/// # Safety
-/// It is up to the caller to guarantee that all elements of the array are
-///  in an initialized state.
-#[doc(hidden)]
-pub const unsafe fn array_assume_init<T, const N: usize>(array: [MaybeUninit<T>; N]) -> [T; N] {
-    // SAFETY: Guaranteed by caller
-    unsafe { transmute_const(array) }
 }
