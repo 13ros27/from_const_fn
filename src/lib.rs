@@ -5,19 +5,44 @@ use core::{
 };
 
 #[macro_export]
+#[doc(hidden)]
+macro_rules! convert_function {
+    (|$var:ident $(: $_:ident)?| $(-> $__:ident)? $body:expr) => {
+        /// # Safety
+        /// `$body` must return `T`
+        const unsafe fn callback<T>($var: usize) -> T {
+            // By placing `$body` in a separate expression we prevent running `unsafe`
+            //  code without a visible `unsafe` block
+            let body = $body;
+            // SAFETY: Guaranteed by caller
+            unsafe { $crate::transmute_const(body) }
+        }
+    };
+    ($cb:expr) => {
+        /// # Safety
+        /// `$cb` must return `T`
+        const unsafe fn callback<T>(i: usize) -> T {
+            // SAFETY: Guaranteed by caller
+            unsafe { $crate::transmute_const($cb(i)) }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! from_const_fn {
-    ($cb:expr) => {{
+    ($($cb:tt)*) => {{
+        $crate::convert_function!($($cb)*);
+
         /// # Safety
         /// `$cb` must return the same type as the passed function `_`
-        const unsafe fn from_const_fn<T, const N: usize>(
-            _: ::core::mem::ManuallyDrop<impl FnMut(usize) -> T>, // <-- Note 1
+        const unsafe fn from_const_fn<T: core::fmt::Debug, const N: usize>(
+            _: ::core::mem::ManuallyDrop<impl FnMut(usize) -> T>,
         ) -> [T; N] {
             let mut array = [const { ::core::mem::MaybeUninit::<T>::uninit() }; N];
             let mut guard = $crate::Guard::new(&mut array);
             while guard.get_index() < N {
-                let ret = $cb(guard.get_index());
                 // SAFETY: `$cb(i)` returns `T` as guaranteed by caller
-                let val = unsafe { $crate::transmute_const(ret) };
+                let val = unsafe { callback(guard.get_index()) };
                 guard.array[guard.get_index()] = ::core::mem::MaybeUninit::new(val);
                 guard.increment();
             }
@@ -27,7 +52,7 @@ macro_rules! from_const_fn {
         }
 
         // SAFETY: `$cb` is the passed function so it returns the same type.
-        unsafe { from_const_fn(::core::mem::ManuallyDrop::new($cb)) }
+        unsafe { from_const_fn(::core::mem::ManuallyDrop::new($($cb)*)) }
     }};
 }
 
