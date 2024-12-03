@@ -3,6 +3,10 @@ name = "from_const_fn"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["std"]
+std = []
+
 [lints.clippy]
 doc_markdown = "warn"
 manual_let_else = "warn"
