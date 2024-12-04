@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = []
+default = ["drop_guard"]
+drop_guard = []
 
 [lints.clippy]
 doc_markdown = "warn"
