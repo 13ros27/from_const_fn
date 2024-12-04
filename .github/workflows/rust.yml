@@ -22,3 +22,5 @@ jobs:
       run: cargo clippy --verbose -- -Dwarnings
     - name: Test
       run: cargo test --verbose
+    - name: Test 1.61
+      run: cargo +1.61 test --no-default-features --verbose
