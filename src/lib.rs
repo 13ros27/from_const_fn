@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 use core::{
     mem::{ManuallyDrop, MaybeUninit},
     ptr,
@@ -147,7 +147,5 @@ impl<T, const N: usize> Drop for Guard<'_, T, N> {
         //  - `slice` is a pointer formed from a mutable slice so is valid, aligned, nonnull and unique
         //  - The values held in `slice` were generated safely so must uphold their invariants
         unsafe { ptr::drop_in_place(slice) }
-        #[cfg(feature = "std")]
-        eprintln!("Panicked, dropped {} items", self.index);
     }
 }
