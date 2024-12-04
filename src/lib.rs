@@ -59,8 +59,8 @@ macro_rules! from_const_fn {
                 while guard.get_index() < N {
                     // SAFETY: `$cb(i)` returns `T` as guaranteed by caller
                     let val = unsafe { callback(guard.get_index()) };
-                    guard.array[guard.get_index()] = ::core::mem::MaybeUninit::new(val);
-                    guard.increment();
+                    // SAFETY: The loop condition ensures we have space to push the item
+                    unsafe { guard.push_unchecked(val) };
                 }
                 ::core::mem::forget(guard);
             }
@@ -172,9 +172,9 @@ pub mod imp {
             }
 
             /// # Safety
-            ///  - `self.array` must be initialised up to and including the new `self.index`
-            ///  - `self.array.len()` must be greater than `self.index`
-            pub const unsafe fn increment(&mut self) {
+            /// There must be space to push `item` into `self.array`
+            pub const unsafe fn push_unchecked(&mut self, item: T) {
+                self.array[self.index] = MaybeUninit::new(item);
                 self.index += 1;
             }
         }
