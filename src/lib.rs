@@ -1,4 +1,19 @@
 #![no_std]
+#![warn(
+    clippy::doc_markdown,
+    clippy::manual_let_else,
+    clippy::match_same_arms,
+    clippy::redundant_closure_for_method_calls,
+    clippy::redundant_else,
+    clippy::semicolon_if_nothing_returned,
+    clippy::undocumented_unsafe_blocks,
+    clippy::unwrap_or_default,
+    clippy::ptr_as_ptr,
+    clippy::ptr_cast_constness,
+    clippy::ref_as_ptr,
+    unsafe_op_in_unsafe_fn,
+    unused_qualifications
+)]
 
 /// Like [`array::from_fn`](core::array::from_fn), creates an array of type `[T; N]`,
 /// where each element `T` is the returned value from `cb` using that element's index.
@@ -31,10 +46,12 @@ macro_rules! from_const_fn {
 
         /// # Safety
         /// `$cb` must return the same type as the passed function `_`
-        const unsafe fn from_const_fn<T: core::fmt::Debug, const N: usize>(
+        const unsafe fn from_const_fn<T, const N: usize>(
             _: ::core::mem::ManuallyDrop<impl FnMut(usize) -> T>,
         ) -> [T; N] {
-            let mut array = [const { ::core::mem::MaybeUninit::<T>::uninit() }; N];
+            // This could use `const {MaybeUninit::uninit()}` but this lowers the MSRV
+            let mut array: [::core::mem::MaybeUninit<T>; N] =
+                unsafe { ::core::mem::MaybeUninit::uninit().assume_init() };
 
             #[cfg(feature = "drop_guard")]
             {
@@ -69,7 +86,7 @@ macro_rules! from_const_fn {
 
 #[doc(hidden)]
 pub mod imp {
-    use core::mem::ManuallyDrop;
+    use core::mem::{size_of, ManuallyDrop};
 
     #[doc(hidden)]
     #[macro_export]
@@ -100,10 +117,15 @@ pub mod imp {
     /// # Safety
     /// See `mem::transmute`
     pub const unsafe fn transmute_const<Src, Dst>(src: Src) -> Dst {
-        const fn check_equal<Src, Dst>() {
-            assert!(size_of::<Src>() == size_of::<Dst>());
+        // This could use a function call in a `const` block but this lowers the MSRV
+        struct Check<Src, Dst>(Src, Dst);
+        impl<Src, Dst> Check<Src, Dst> {
+            const SIZE_MISMATCH: () = assert!(
+                size_of::<Src>() >= size_of::<Dst>(),
+                "Size mismatch in transmute_const"
+            );
         }
-        const { check_equal::<Src, Dst>() };
+        let _: () = Check::<Src, Dst>::SIZE_MISMATCH;
 
         // SAFETY:
         //  - We checked `size_of::<Src>() == size_of::<Dst>()` above
