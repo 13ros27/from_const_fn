@@ -1,4 +1,5 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/13ros27/from_const_fn#license)
+[![CI](https://github.com/bevyengine/bevy/workflows/CI/badge.svg)](https://github.com/13ros27/from_const_fn/actions)
 
 A `const` counterpart to `core::array::from_fn`, `from_const_fn!`.
 
