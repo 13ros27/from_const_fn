@@ -5,6 +5,10 @@ A `const` counterpart to `core::array::from_fn`, `from_const_fn!`.
 
 This works similarly to [`from_fn`](https://doc.rust-lang.org/std/array/fn.from_fn.html) however also works in any `const` environment. This does come with the limitation of not supporting closures that borrow (or move) their environment. For more details and examples, see [`from_const_fn`](https://github.com/13ros27/from_const_fn/blob/master/lib.rs#L32).
 
+## MSRV
+
+The minimum supported Rust version is 1.83 with `default-features` enabled and 1.61 with them disabled.
+
 ## License
 
 All code in this repository is dual-licensed under either:
