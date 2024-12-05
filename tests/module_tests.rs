@@ -1,5 +1,9 @@
 use from_const_fn::from_const_fn;
 
+mod alias {
+    pub type Alias<T> = T;
+}
+
 const fn multiply_by_2(n: usize) -> u8 {
     n as u8 * 2
 }
@@ -12,6 +16,9 @@ const MULTIPLES_OF_2_BLOCK: [u8; 50] = from_const_fn!(|n| {
 });
 const MULTIPLES_OF_2_TYPE: [u8; 50] = from_const_fn!(|n: usize| n as u8 * 2);
 const MULTIPLES_OF_2_TYPES: [u8; 50] = from_const_fn!(|n: usize| -> u8 { n as u8 * 2 });
+// Checks that the macro is using `$ty` not `$ident` (thanks u/AlxandrHeintz)
+const MULTIPLES_OF_2_TYPES_GEN: [u8; 50] =
+    from_const_fn!(|n: alias::Alias<usize>| -> alias::Alias<u8> { n as u8 * 2 });
 
 #[test]
 fn check_correct_generation() {
@@ -25,6 +32,7 @@ fn check_correct_generation() {
     assert_eq!(correct, MULTIPLES_OF_2_BLOCK);
     assert_eq!(correct, MULTIPLES_OF_2_TYPE);
     assert_eq!(correct, MULTIPLES_OF_2_TYPES);
+    assert_eq!(correct, MULTIPLES_OF_2_TYPES_GEN);
 }
 
 #[cfg(feature = "drop_guard")]
