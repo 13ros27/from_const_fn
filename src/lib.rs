@@ -79,8 +79,9 @@ macro_rules! from_const_fn {
             unsafe { $crate::imp::transmute_const(array) }
         }
 
+        let cb = $($cb)*;
         // SAFETY: `$cb` is the passed function so it returns the same type.
-        unsafe { from_const_fn(::core::mem::ManuallyDrop::new($($cb)*)) }
+        unsafe { from_const_fn(::core::mem::ManuallyDrop::new(cb)) }
     }};
 }
 
