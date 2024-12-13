@@ -91,7 +91,7 @@ pub mod imp {
     #[doc(hidden)]
     #[macro_export]
     macro_rules! convert_function {
-        (|$var:ident $(: $_:ty)?| -> $__:ty { $body:expr }) => {
+        (|$var:ident $(: $_:ty)?| -> $__:ty $body:block) => {
             $crate::convert_function!(|$var| $body)
         };
         (|$var:ident $(: $_:ty)?| $body:expr) => {
