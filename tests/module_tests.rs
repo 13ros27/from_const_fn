@@ -14,6 +14,7 @@ const MULTIPLES_OF_2_BLOCK: [u8; 50] = from_const_fn!(|n| {
     let n_cast = n as u8;
     n_cast * 2
 });
+
 const MULTIPLES_OF_2_TYPE: [u8; 50] = from_const_fn!(|n: usize| n as u8 * 2);
 const MULTIPLES_OF_2_TYPES: [u8; 50] = from_const_fn!(|n: usize| -> u8 { n as u8 * 2 });
 // Checks that the macro is using `$ty` not `$ident` (thanks u/AlxandrHeintz)
@@ -25,6 +26,10 @@ const MULTIPLES_OF_2_TYPES_COMPLEX_BODY: [u8; 50] = from_const_fn!(|n| -> u8 {
     n_cast * 2
 });
 
+const WILDCARD_CLOSURE: [u8; 50] = from_const_fn!(|_| 35);
+const WILDCARD_CLOSURE_BLOCK: [u8; 50] = from_const_fn!(|_| { 35 });
+const WILDCARD_CLOSURE_TYPE: [u8; 50] = from_const_fn!(|_| -> u8 { 35 });
+
 #[test]
 fn check_correct_generation() {
     let correct: [u8; 50] = [
@@ -35,10 +40,15 @@ fn check_correct_generation() {
     assert_eq!(correct, MULTIPLES_OF_2_FN);
     assert_eq!(correct, MULTIPLES_OF_2);
     assert_eq!(correct, MULTIPLES_OF_2_BLOCK);
+
     assert_eq!(correct, MULTIPLES_OF_2_TYPE);
     assert_eq!(correct, MULTIPLES_OF_2_TYPES);
     assert_eq!(correct, MULTIPLES_OF_2_TYPES_GEN);
     assert_eq!(correct, MULTIPLES_OF_2_TYPES_COMPLEX_BODY);
+
+    assert_eq!([35; 50], WILDCARD_CLOSURE);
+    assert_eq!([35; 50], WILDCARD_CLOSURE_BLOCK);
+    assert_eq!([35; 50], WILDCARD_CLOSURE_TYPE);
 }
 
 #[cfg(feature = "drop_guard")]
