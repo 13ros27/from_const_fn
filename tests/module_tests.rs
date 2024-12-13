@@ -51,16 +51,19 @@ fn check_correct_generation() {
     assert_eq!([35; 50], WILDCARD_CLOSURE_BLOCK);
     assert_eq!([35; 50], WILDCARD_CLOSURE_TYPE);
 
-    struct SyncUnsafeCell(UnsafeCell<u8>);
-    // SAFETY: Haha nope
-    unsafe impl Sync for SyncUnsafeCell {}
-    static COUNTER: SyncUnsafeCell = SyncUnsafeCell(UnsafeCell::new(0));
-    let wildcard_closure_counting: [u8; 50] = from_const_fn!(|_| {
-        let n = COUNTER.0.get();
-        *n += 2;
-        *n - 2
-    });
-    assert_eq!(correct, wildcard_closure_counting);
+    #[cfg(feature = "drop_guard")]
+    {
+        struct SyncUnsafeCell(UnsafeCell<u8>);
+        // SAFETY: Haha nope
+        unsafe impl Sync for SyncUnsafeCell {}
+        static COUNTER: SyncUnsafeCell = SyncUnsafeCell(UnsafeCell::new(0));
+        let wildcard_closure_counting: [u8; 50] = from_const_fn!(|_| {
+            let n = COUNTER.0.get();
+            *n += 2;
+            *n - 2
+        });
+        assert_eq!(correct, wildcard_closure_counting);
+    }
 }
 
 #[cfg(feature = "drop_guard")]
