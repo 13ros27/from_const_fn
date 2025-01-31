@@ -39,6 +39,7 @@
 /// // Indexes are          0     1      2     3      4
 /// assert_eq!(BOOL_ARRAY, [true, false, true, false, true]);
 /// ```
+#[cfg(feature = "drop_guard")]
 #[macro_export]
 macro_rules! from_const_fn {
     ($($cb:tt)*) => {{
@@ -53,17 +54,14 @@ macro_rules! from_const_fn {
             let mut array: [::core::mem::MaybeUninit<T>; N] =
                 unsafe { ::core::mem::MaybeUninit::uninit().assume_init() };
 
-            #[cfg(feature = "drop_guard")]
-            {
-                let mut guard = $crate::imp::Guard::new(&mut array);
-                while guard.get_index() < N {
-                    // SAFETY: `$cb(i)` returns `T` as guaranteed by caller
-                    let val = unsafe { callback(guard.get_index()) };
-                    // SAFETY: The loop condition ensures we have space to push the item
-                    unsafe { guard.push_unchecked(val) };
-                }
-                ::core::mem::forget(guard);
+            let mut guard = $crate::imp::Guard::new(&mut array);
+            while guard.get_index() < N {
+                // SAFETY: `$cb(i)` returns `T` as guaranteed by caller
+                let val = unsafe { callback(guard.get_index()) };
+                // SAFETY: The loop condition ensures we have space to push the item
+                unsafe { guard.push_unchecked(val) };
             }
+            ::core::mem::forget(guard);
             #[cfg(not(feature = "drop_guard"))]
             {
                 let mut i = 0;
@@ -73,6 +71,38 @@ macro_rules! from_const_fn {
                     array[i] = ::core::mem::MaybeUninit::new(val);
                     i += 1;
                 }
+            }
+
+            // SAFETY: i == N so the whole array is initialised
+            unsafe { $crate::imp::transmute_const(array) }
+        }
+
+        let cb = $($cb)*;
+        // SAFETY: `$cb` is the passed function so it returns the same type.
+        unsafe { from_const_fn(::core::mem::ManuallyDrop::new(cb)) }
+    }};
+}
+#[cfg(not(feature = "drop_guard"))]
+#[macro_export]
+macro_rules! from_const_fn {
+    ($($cb:tt)*) => {{
+        $crate::convert_function!($($cb)*);
+
+        /// # Safety
+        /// `$cb` must return the same type as the passed function `_`
+        const unsafe fn from_const_fn<T, const N: usize>(
+            _: ::core::mem::ManuallyDrop<impl FnMut(usize) -> T>,
+        ) -> [T; N] {
+            // This could use `const {MaybeUninit::uninit()}` but this lowers the MSRV
+            let mut array: [::core::mem::MaybeUninit<T>; N] =
+                unsafe { ::core::mem::MaybeUninit::uninit().assume_init() };
+
+            let mut i = 0;
+            while i < N {
+                // SAFETY: `$cb(i)` returns `T` as guaranteed by caller
+                let val = unsafe { callback(i) };
+                array[i] = ::core::mem::MaybeUninit::new(val);
+                i += 1;
             }
 
             // SAFETY: i == N so the whole array is initialised
