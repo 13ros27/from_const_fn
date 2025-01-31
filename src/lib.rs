@@ -62,16 +62,6 @@ macro_rules! from_const_fn {
                 unsafe { guard.push_unchecked(val) };
             }
             ::core::mem::forget(guard);
-            #[cfg(not(feature = "drop_guard"))]
-            {
-                let mut i = 0;
-                while i < N {
-                    // SAFETY: `$cb(i)` returns `T` as guaranteed by caller
-                    let val = unsafe { callback(i) };
-                    array[i] = ::core::mem::MaybeUninit::new(val);
-                    i += 1;
-                }
-            }
 
             // SAFETY: i == N so the whole array is initialised
             unsafe { $crate::imp::transmute_const(array) }
